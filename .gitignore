@@ -1,8 +1,9 @@
 __pycache__/
 *.pyc
+*.txt
 
-.venv/
-venv/
+.venv311/
+venv311/
 
 data/raw/
 

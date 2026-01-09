@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 import pandas as pd
 from convokit import Corpus, download
+from sklearn.model_selection import train_test_split
 
-from ..config import SUBREDDITS, OUTPUT_FILENAME, DELETED_MARKERS
-from ..utils.paths import PROCESSED_DIR, CONVOKIT_DIR
+from src.config import SUBREDDITS, OUTPUT_FILENAME, DELETED_MARKERS
+from src.utils.paths import PROCESSED_DIR, CONVOKIT_DIR
 
 def is_valid_text(text: Any) -> bool:
     """Return True if the text is available. """
@@ -61,7 +63,7 @@ def corpus_to_rows(corpus: Corpus, default_subreddit: str) -> List[Dict[str, Any
                                 or utt.id, 
             "speaker_id": get_speaker_id(utt), 
             "text": text, 
-            "subreddit": default_subreddit, 
+            "subreddit": default_subreddit[0], 
         }
         rows.append(row)
 
@@ -97,6 +99,71 @@ def make_balanced_by_minimum(df: pd.DataFrame, label_col: str, seed: int = 42) -
     print(balanced_df[label_col].value_counts())
 
     return balanced_df
+
+def stratified_train_val_test_split(
+    df: pd.DataFrame, 
+    label_col: str = "subreddit", 
+    train_size: float = 0.70, 
+    val_size: float = 0.15, 
+    test_size: float = 0.15, 
+    seed: int = 42, 
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Stratified split into train/val/test. Sizes must sum to 1.0.
+    """
+    total = train_size + val_size + test_size
+    if abs(total - 1.0) > 1e-9:
+        raise ValueError(f"train_size + val_size + test_size must sum to 1.0, got {total}")
+    
+    y = df[label_col]
+
+    # train vs temp (val+test)
+    df_train, df_temp = train_test_split(
+        df, 
+        test_size=(1.0 - train_size), 
+        random_state=seed, 
+        stratify=y
+    )
+
+    # split temp into val/test
+    test_frac_of_temp = test_size / (val_size+test_size)
+
+    df_val, df_test = train_test_split(
+        df_temp, 
+        test_size=test_frac_of_temp, 
+        random_state=seed, 
+        stratify=df_temp[label_col], 
+    )
+
+    print("[INFO] Split sizes: ")
+    print(f"    train: {len(df_train)}")
+    print(f"    train: {len(df_val)}")
+    print(f"    train: {len(df_test)}")
+
+    print("[INFO] Train label distribution:")
+    print(df_train[label_col].value_counts())
+    print("[INFO] Val label distribution:")
+    print(df_val[label_col].value_counts())
+    print("[INFO] Test label distribution:")
+    print(df_test[label_col].value_counts())
+
+    return df_train, df_val, df_test    
+
+def _derive_split_paths(output_filename: str) -> Tuple[Path, Path, Path, Path]:
+    """
+    Given OUTPUT_FILENAME,
+    produce:
+      - balanced path
+      - train path
+      - val path
+      - test path
+    """
+    out_path = PROCESSED_DIR / output_filename
+    stem = out_path.stem 
+    train_path = out_path.with_name(f"{stem}_train.csv")
+    val_path = out_path.with_name(f"{stem}_val.csv")
+    test_path = out_path.with_name(f"{stem}_test.csv")
+    return out_path, train_path, val_path, test_path
 
 
 def load_and_clean_subreddit(subreddit: str) -> pd.DataFrame:
@@ -138,14 +205,23 @@ def load_and_clean_all_subreddits() -> pd.DataFrame:
 
     balanced = make_balanced_by_minimum(merged, label_col="subreddit", seed=42)
 
-    output_path = PROCESSED_DIR / OUTPUT_FILENAME
-    balanced.to_csv(output_path, index=False)
-
-    print(
-        f"[INFO] Saved {len(balanced)} balanced cleaned utterances "
-        f"from {len(SUBREDDITS)} subreddits to {output_path}"
+    df_train, df_val, df_test = stratified_train_val_test_split(
+        balanced,
+        label_col="subreddit",
+        train_size=0.70,
+        val_size=0.15,
+        test_size=0.15,
+        seed=42,
     )
-    return balanced
+
+    _, train_path, val_path, test_path = _derive_split_paths(OUTPUT_FILENAME)
+
+
+    df_train.to_csv(train_path, index=False)
+    df_val.to_csv(val_path, index=False)
+    df_test.to_csv(test_path, index=False)
+
+    print(f"[INFO] Saved train/val/test splits to:\n  {train_path}\n  {val_path}\n  {test_path}")
 
 
 if __name__ == "__main__":
