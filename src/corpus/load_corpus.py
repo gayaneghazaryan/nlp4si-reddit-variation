@@ -63,7 +63,7 @@ def corpus_to_rows(corpus: Corpus, default_subreddit: str) -> List[Dict[str, Any
                                 or utt.id, 
             "speaker_id": get_speaker_id(utt), 
             "text": text, 
-            "subreddit": default_subreddit[0], 
+            "subreddit": default_subreddit, 
         }
         rows.append(row)
 

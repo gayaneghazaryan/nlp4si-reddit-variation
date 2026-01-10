@@ -1,0 +1,5 @@
+,pos_PRON_rate,pos_PRON_rate,pos_PRON_rate,pos_first_person_rate,pos_first_person_rate,pos_first_person_rate,pos_second_person_rate,pos_second_person_rate,pos_second_person_rate,pos_noun_verb_ratio,pos_noun_verb_ratio,pos_noun_verb_ratio,pos_AUX_rate,pos_AUX_rate,pos_AUX_rate,pos_modal_rate,pos_modal_rate,pos_modal_rate,pos_past_tense_rate,pos_past_tense_rate,pos_past_tense_rate,pos_pres_tense_rate,pos_pres_tense_rate,pos_pres_tense_rate
+,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std
+subreddit,,,,,,,,,,,,,,,,,,,,,,,,
+legaladvice,0.1166,0.1143,0.0654,0.0301,0.0127,0.04,0.0318,0.0131,0.0441,1.6348,1.4,1.3012,0.091,0.0909,0.0489,0.0209,0.0147,0.0255,0.0406,0.0312,0.0454,0.0846,0.08,0.0544
+relationshipadvice,0.1556,0.1591,0.0607,0.0487,0.0417,0.0454,0.0335,0.0159,0.0421,0.9961,0.8889,0.7911,0.0927,0.0933,0.0452,0.0179,0.0135,0.0215,0.0346,0.0258,0.0395,0.0994,0.0995,0.051

@@ -41,6 +41,57 @@ from src.utils.paths import PROCESSED_DIR
 LABEL_COL = "subreddit"
 ID_COL = "utterance_id"
 
+import numpy as np
+
+def get_feature_names(X: pd.DataFrame) -> list[str]:
+    return list(X.columns)
+
+def export_logreg_coefficients(
+    model,
+    feature_names: list[str],
+    out_csv_path: Path,
+) -> pd.DataFrame:
+    """
+    Export coefficients from a fitted sklearn Pipeline(Scaler -> LogisticRegression).
+
+    For binary classification, coef_ has shape (1, n_features) and corresponds to the
+    "positive class" in model.classes_[1]. Negative values favor classes_[0].
+    """
+    # Pipeline case
+    if hasattr(model, "named_steps") and "clf" in model.named_steps:
+        clf = model.named_steps["clf"]
+    else:
+        clf = model  # fallback if you pass LogisticRegression directly
+
+    if not hasattr(clf, "coef_"):
+        raise ValueError("Model has no coef_. Are you using LogisticRegression?")
+
+    classes = list(clf.classes_)
+    coef = clf.coef_
+
+    # Binary case: one coefficient vector
+    if coef.shape[0] == 1:
+        coef_vec = coef[0]
+        df = pd.DataFrame({
+            "feature": feature_names,
+            "coef": coef_vec,
+        }).sort_values("coef", ascending=False)
+
+        df.attrs["positive_class"] = classes[1]
+        df.attrs["negative_class"] = classes[0]
+
+    else:
+        # Multiclass: one row per class
+        rows = []
+        for i, cls in enumerate(classes):
+            for f, c in zip(feature_names, coef[i]):
+                rows.append({"class": cls, "feature": f, "coef": c})
+        df = pd.DataFrame(rows).sort_values(["class", "coef"], ascending=[True, False])
+
+    out_csv_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_csv_path, index=False)
+    return df
+
 
 def load_base(stem: str, split: str) -> pd.DataFrame:
     base_path = PROCESSED_DIR / f"{stem}_{split}.csv"
@@ -175,6 +226,9 @@ def main():
         action="store_true",
         help="If set, save the trained model under data/processed/models/",
     )
+    parser.add_argument("--export_coefs", action="store_true", help="Export logistic regression coefficients to CSV")
+    parser.add_argument("--top_k", type=int, default=20, help="Top-k coefficients to print per class (binary prints top + bottom)")
+
     args = parser.parse_args()
 
     stem = args.stem
@@ -202,6 +256,35 @@ def main():
 
     # Train + evaluate
     model = train_and_eval(X_train, y_train, X_val, y_val, X_test, y_test, seed=seed)
+
+    if args.export_coefs:
+        feature_names = get_feature_names(X_train)
+
+        out_path = PROCESSED_DIR / "reports" / "coefs" / f"{stem}__{feature_set}__logreg_coefs.csv"
+        coef_df = export_logreg_coefficients(model, feature_names, out_path)
+
+        print(f"\n[INFO] Exported coefficients to {out_path}")
+
+        # Pretty-print top predictors (binary case)
+        if "coef" in coef_df.columns and "class" not in coef_df.columns:
+            pos_class = coef_df.attrs.get("positive_class", "classes_[1]")
+            neg_class = coef_df.attrs.get("negative_class", "classes_[0]")
+
+            top_k = args.top_k
+
+            print(f"\n[INFO] Top {top_k} features predicting class '{pos_class}' (largest + coefficients):")
+            print(coef_df.head(top_k).to_string(index=False))
+
+            print(f"\n[INFO] Top {top_k} features predicting class '{neg_class}' (most negative coefficients):")
+            print(coef_df.tail(top_k).sort_values("coef", ascending=True).to_string(index=False))
+        else:
+            # Multiclass case: print top_k per class
+            top_k = args.top_k
+            print("\n[INFO] Top features per class (multiclass):")
+            for cls in sorted(coef_df["class"].unique()):
+                sub = coef_df[coef_df["class"] == cls].head(top_k)
+                print(f"\nClass: {cls}")
+                print(sub.to_string(index=False))
 
     if args.save_model:
         models_dir = PROCESSED_DIR / "models"

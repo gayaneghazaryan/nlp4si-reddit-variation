@@ -1,5 +1,0 @@
-,char_len,char_len,char_len,word_len,word_len,word_len,sent_len,sent_len,sent_len,avg_word_len,avg_word_len,avg_word_len,num_qmarks,num_qmarks,num_qmarks,digit_count,digit_count,digit_count,uppercase_word_count,uppercase_word_count,uppercase_word_count
-,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std,mean,median,std
-subreddit,,,,,,,,,,,,,,,,,,,,,
-legaladvice,388.44,211.0,532.28,69.46,38.0,96.18,4.26,3.0,4.91,4.76,4.47,2.72,0.53,0.0,0.99,1.66,0.0,5.3,0.35,0.0,1.54
-relationshipadvice,646.04,331.0,911.56,123.84,63.0,175.45,7.89,4.0,10.43,4.38,4.2,2.41,0.68,0.0,1.28,1.2,0.0,3.04,0.29,0.0,1.3
